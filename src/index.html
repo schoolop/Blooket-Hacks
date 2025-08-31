@@ -1,64 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blooket Tools Panel</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Keep‑Alive Pinger</title>
+  <meta name="description" content="Beautiful keep‑alive website that periodically pings your URL and shows animated status." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23fff' d='M22 128a106 106 0 1 0 212 0A106 106 0 0 0 22 128Zm34 0a72 72 0 1 1 144 0a72 72 0 0 1-144 0Z'/%3E%3C/svg%3E"/>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #1e1e1e;
-      color: #f0f0f0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+    :root{
+      --bg1:#0f0c29; --bg2:#302b63; --bg3:#24243e;
+      --card: rgba(255,255,255,.08);
+      --stroke: rgba(255,255,255,.15);
+      --text:#f6f7fb;
+      --accent:#6ee7ff; /* cyan */
+      --accent2:#a78bfa; /* purple */
+      --good:#10b981; --bad:#ef4444; --warn:#f59e0b;
+      --shadow: 0 20px 60px rgba(0,0,0,.45), 0 10px 30px rgba(0,0,0,.35);
     }
-    .container {
-      background: #2a2a2a;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-      max-width: 700px;
-      width: 100%;
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font: 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color:var(--text);
+      overflow:hidden;
+      background: radial-gradient(1200px 800px at 10% 10%, #1b1e3b 0%, rgba(0,0,0,0) 60%),
+                  radial-gradient(1200px 800px at 90% 30%, #2a1144 0%, rgba(0,0,0,0) 60%),
+                  linear-gradient(120deg, var(--bg1), var(--bg2), var(--bg3));
+      background-size: 200% 200%;
+      animation: gradientShift 16s ease infinite;
     }
-    pre {
-      background: #111;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
+    @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+    /* floating shapes */
+    .blob{position:absolute; filter: blur(40px); opacity:.35; mix-blend-mode: screen; pointer-events:none}
+    .blob.one{ width:520px; height:520px; background: radial-gradient(circle at 30% 30%, #5eead4, transparent 60%); top:-120px; left:-120px; animation: float1 18s ease-in-out infinite}
+    .blob.two{ width:520px; height:520px; background: radial-gradient(circle at 70% 70%, #a78bfa, transparent 60%); bottom:-140px; right:-120px; animation: float2 22s ease-in-out infinite}
+    @keyframes float1{0%,100%{transform:translateY(0) translateX(0)}50%{transform:translateY(35px) translateX(25px)}}
+    @keyframes float2{0%,100%{transform:translateY(0) translateX(0)}50%{transform:translateY(-35px) translateX(-25px)}}
+
+    /* particles canvas fills background */
+    #fx{position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.35}
+
+    .wrap{position:relative; z-index:1; height:100%; display:grid; place-items:center; padding:24px}
+
+    .card{
+      width:min(920px, 92vw); padding:28px; border-radius:28px; backdrop-filter: blur(16px) saturate(130%);
+      background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.06));
+      border:1px solid var(--stroke); box-shadow: var(--shadow);
     }
-    button {
-      margin-top: 10px;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 8px;
-      background: #007bff;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
+    .header{display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap}
+    .title{display:flex; gap:12px; align-items:center}
+    .pulse{width:14px; height:14px; border-radius:999px; background:var(--warn); position:relative; box-shadow:0 0 0 0 rgba(255,255,255,.5); animation:pulse 2s infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(110,231,255,.7)}70%{box-shadow:0 0 0 14px rgba(110,231,255,0)}100%{box-shadow:0 0 0 0 rgba(110,231,255,0)}}
+
+    .status{padding:6px 10px; border:1px solid var(--stroke); border-radius:999px; display:flex; gap:8px; align-items:center; background:rgba(255,255,255,.06)}
+    .status .dot{width:8px; height:8px; border-radius:999px; background:var(--warn)}
+
+    .grid{display:grid; grid-template-columns: 1fr; gap:18px; margin-top:18px}
+    @media (min-width:860px){ .grid{grid-template-columns: 1.6fr .9fr} }
+
+    .field{display:flex; flex-direction:column; gap:8px}
+    label{opacity:.85; font-weight:600; letter-spacing:.2px}
+    input, select, button, textarea{
+      background: rgba(255,255,255,.06); color:var(--text); border:1px solid var(--stroke); border-radius:14px; padding:12px 14px; outline:none;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
     }
-    button:hover {
-      background: #0056b3;
+    input:focus, select:focus, textarea:focus{border-color:rgba(110,231,255,.7); box-shadow:0 0 0 6px rgba(110,231,255,.12)}
+
+    .row{display:flex; gap:12px; flex-wrap:wrap}
+    .row > *{flex:1 1 220px}
+
+    .btn{
+      cursor:pointer; font-weight:700; letter-spacing:.2px; position:relative; overflow:hidden
     }
+    .btn.primary{background: linear-gradient(135deg, rgba(110,231,255,.22), rgba(167,139,250,.26)); border-color:rgba(255,255,255,.25)}
+    .btn.primary:hover{transform: translateY(-1px)}
+    .btn.ghost{background:transparent}
+
+    .bar{height:10px; background:rgba(255,255,255,.06); border:1px solid var(--stroke); border-radius:999px; overflow:hidden}
+    .bar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition:width .3s ease}
+
+    .panel{padding:16px; border-radius:16px; background:rgba(255,255,255,.05); border:1px solid var(--stroke)}
+    .stack{display:flex; flex-direction:column; gap:10px}
+
+    .log{max-height:260px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:13px; line-height:1.45;}
+    .log .row{display:flex; gap:8px; align-items:flex-start}
+    .log time{opacity:.75; min-width:110px}
+
+    .badge{padding:6px 10px; border-radius:999px; border:1px solid var(--stroke); background:rgba(255,255,255,.06); display:inline-flex; gap:8px; align-items:center}
+    .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; padding:2px 6px; border-radius:6px; border:1px solid var(--stroke); background:rgba(0,0,0,.25)}
+
+    .tiny{opacity:.75; font-size:12px}
+    .right{margin-left:auto}
+
+    .foot{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>📜 Example Code</h2>
-    <pre id="codeBlock">
+  <canvas id="fx"></canvas>
+  <i class="blob one"></i>
+  <i class="blob two"></i>
 
-    </pre>
-    <button onclick="copyCode()">📋 Copy Code</button>
+  <div class="wrap">
+    <section class="card">
+      <header class="header">
+        <div class="title">
+          <div class="pulse" id="pulse"></div>
+          <div>
+            <h1 style="margin:0; font-weight:900; letter-spacing:.3px">Keep‑Alive Pinger</h1>
+            <div class="tiny">Beautiful, animated, and actually useful.</div>
+          </div>
+        </div>
+        <div class="status" id="status">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">Idle</span>
+        </div>
+      </header>
+
+      <div class="grid">
+        <!-- LEFT: controls -->
+        <div class="panel stack">
+          <div class="field">
+            <label for="url">Target URL</label>
+            <input id="url" type="url" placeholder="https://your-app.example.com/health" spellcheck="false" />
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="interval">Interval</label>
+              <select id="interval">
+                <option value="1">Every 1 minute</option>
+                <option value="5">Every 5 minutes</option>
+                <option value="10" selected>Every 10 minutes</option>
+                <option value="15">Every 15 minutes</option>
+                <option value="30">Every 30 minutes</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="method">Method</label>
+              <select id="method">
+                <option>GET</option>
+                <option>HEAD</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="btn primary" id="start">Start Pinging</button>
+            <button class="btn ghost" id="stop">Stop</button>
+          </div>
+
+          <div class="field">
+            <label>Next Ping</label>
+            <div class="bar"><i id="progress"></i></div>
+          </div>
+
+          <div class="foot">
+            <div class="badge">
+              <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span>
+              <span class="tiny">start / stop</span>
+            </div>
+            <button class="btn ghost right" id="copyCurl">Copy cURL</button>
+          </div>
+        </div>
+
+        <!-- RIGHT: activity -->
+        <div class="panel stack">
+          <div class="row" style="align-items:center; justify-content:space-between">
+            <h3 style="margin:0">Activity</h3>
+            <div class="tiny">Stored locally • persists on refresh</div>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+
+      <div class="tiny" style="margin-top:12px; opacity:.7">
+        Heads up: your browser must remain open for the pinger to run. If you need 24/7 pings, use an uptime service (UptimeRobot, FreshPing, etc.) or a tiny server.
+      </div>
+    </section>
   </div>
 
   <script>
-    function copyCode() {
-      const code = document.getElementById("codeBlock").innerText;
-      navigator.clipboard.writeText(code).then(() => {
-        alert("Code copied to clipboard!");
-      });
+    // ===== Fancy particle background =====
+    const fx = document.getElementById('fx');
+    const ctx = fx.getContext('2d');
+    let W, H, particles = [];
+    function resize(){ W = fx.width = window.innerWidth; H = fx.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+    function makeParticles(n=80){
+      particles = Array.from({length:n},()=>({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: (Math.random()-.5)*.25,
+        vy: (Math.random()-.5)*.25,
+        r: Math.random()*2 + .6,
+        o: Math.random()*.5+.15
+      }));
     }
+    makeParticles(100);
+    function tick(){
+      ctx.clearRect(0,0,W,H);
+      for(const p of particles){
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0||p.x>W) p.vx*=-1; if(p.y<0||p.y>H) p.vy*=-1;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+        g.addColorStop(0,'rgba(255,255,255,'+p.o+')'); g.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fill();
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    // ===== Keep‑Alive logic =====
+    const $ = sel => document.querySelector(sel);
+    const urlEl = $('#url');
+    const intervalEl = $('#interval');
+    const methodEl = $('#method');
+    const startBtn = $('#start');
+    const stopBtn = $('#stop');
+    const progress = $('#progress');
+    const statusDot = $('#statusDot');
+    const statusText = $('#statusText');
+    const logEl = $('#log');
+    const copyCurlBtn = $('#copyCurl');
+
+    let timer = null, tickTimer = null, msRemaining = 0, msTotal = 0;
+    const MAX_LOG = 120;
+
+    // Persist settings
+    const stateKey = 'keepalive:v1';
+    function saveState(){
+      const s = { url: urlEl.value, interval: intervalEl.value, method: methodEl.value, running: !!timer };
+      localStorage.setItem(stateKey, JSON.stringify(s));
+    }
+    function loadState(){
+      try{ const s = JSON.parse(localStorage.getItem(stateKey));
+        if(!s) return; urlEl.value = s.url || ''; intervalEl.value = s.interval || '10'; methodEl.value = s.method || 'GET';
+        if(s.running && s.url) start();
+      }catch(e){}
+    }
+
+    // Logger
+    function fmt(ts){
+      return new Date(ts).toLocaleString();
+    }
+    function log(line, ok=true){
+      const el = document.createElement('div'); el.className='row';
+      const time = document.createElement('time'); time.textContent = fmt(Date.now());
+      const msg = document.createElement('div'); msg.textContent = line; msg.style.color = ok ? 'var(--text)' : 'var(--bad)';
+      el.appendChild(time); el.appendChild(msg); logEl.prepend(el);
+      while(logEl.children.length > MAX_LOG){ logEl.removeChild(logEl.lastChild); }
+    }
+
+    async function ping(){
+      const url = urlEl.value.trim(); if(!url) return;
+      const method = methodEl.value.trim();
+      const ts = Date.now();
+      try{
+        const controller = new AbortController(); const t = setTimeout(()=>controller.abort(), 15000);
+        const res = await fetch(url, { method, mode: 'no-cors', cache:'no-store', signal: controller.signal });
+        clearTimeout(t);
+        // With no-cors we can't read status; assume success if no exception.
+        statusDot.style.background = 'var(--good)';
+        document.getElementById('pulse').style.background = 'var(--good)';
+        statusText.textContent = 'OK • ' + new Date().toLocaleTimeString();
+        log(`PING ${method} ${url} — delivered`, true);
+      }catch(err){
+        statusDot.style.background = 'var(--bad)';
+        document.getElementById('pulse').style.background = 'var(--bad)';
+        statusText.textContent = 'Error';
+        log(`PING failed: ${err.message}`, false);
+      }
+    }
+
+    function updateProgress(){
+      if(!timer) return progress.style.width = '0%';
+      msRemaining -= 100; if(msRemaining < 0) msRemaining = 0;
+      const pct = (1 - (msRemaining / msTotal)) * 100; progress.style.width = pct.toFixed(2) + '%';
+    }
+
+    function schedule(){
+      const mins = parseInt(intervalEl.value, 10) || 10;
+      msRemaining = msTotal = mins * 60 * 1000;
+      clearInterval(timer); timer = setInterval(async ()=>{ await ping(); schedule(); }, msTotal);
+      clearInterval(tickTimer); tickTimer = setInterval(updateProgress, 100);
+      updateProgress();
+    }
+
+    async function start(){
+      const url = urlEl.value.trim();
+      if(!url){ urlEl.focus(); urlEl.style.borderColor = 'var(--bad)'; setTimeout(()=>urlEl.style.borderColor='var(--stroke)', 800); return; }
+      statusText.textContent = 'Running';
+      statusDot.style.background = 'var(--warn)';
+      document.getElementById('pulse').style.background = 'var(--warn)';
+      await ping();
+      schedule();
+      saveState();
+    }
+
+    function stop(){
+      clearInterval(timer); clearInterval(tickTimer); timer = tickTimer = null; progress.style.width = '0%';
+      statusText.textContent = 'Idle'; statusDot.style.background = 'var(--warn)'; document.getElementById('pulse').style.background = 'var(--warn)';
+      saveState();
+    }
+
+    // Events
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    intervalEl.addEventListener('change', ()=>{ if(timer) schedule(); saveState(); });
+    methodEl.addEventListener('change', saveState);
+    urlEl.addEventListener('change', saveState);
+
+    // Keyboard shortcut Ctrl+Enter
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+        if(timer) stop(); else start();
+      }
+    });
+
+    // Copy curl
+    copyCurlBtn.addEventListener('click', ()=>{
+      const url = urlEl.value.trim() || 'https://example.com/health';
+      const method = methodEl.value.trim();
+      const cmd = `curl -X ${method} --silent --show-error --fail '${url}'`;
+      navigator.clipboard.writeText(cmd).then(()=>{
+        log('Copied cURL to clipboard');
+      });
+    });
+
+    // Auto‑resume if the tab was hidden
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden && timer){ updateProgress(); }
+    });
+
+    loadState();
   </script>
 </body>
 </html>
